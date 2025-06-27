@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototipo Estacionamiento MazturCars</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .parking-space {
+            transition: all 0.3s ease-in-out;
+        }
+        .occupied {
+            background-color: #ef4444; /* red-500 */
+            color: white;
+        }
+        .free {
+            background-color: #22c55e; /* green-500 */
+            color: white;
+        }
+        .selected-for-exit {
+            background-color: #eab308; /* yellow-500 */
+            color: black;
+        }
+        /* Estilos para el modal de notificación */
+        .modal {
+            display: none; /* Oculto por defecto */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 0.5rem;
+            text-align: center;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    <div class="container mx-auto p-4">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-blue-600">MazturCars - Sistema de Estacionamiento</h1>
+            <p class="text-lg text-gray-600">Prototipo de Gestión Automatizada</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h2 class="text-2xl font-semibold mb-4 text-blue-500">Acceso Vehicular</h2>
+                <div class="mb-4">
+                    <label for="patenteEntrada" class="block text-sm font-medium text-gray-700 mb-1">Patente del Vehículo:</label>
+                    <input type="text" id="patenteEntrada" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="Ej: ABCD12">
+                </div>
+                <button id="btnRegistrarEntrada" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-150">
+                    Registrar Entrada
+                </button>
+                <p id="mensajeEntrada" class="mt-3 text-sm text-gray-600"></p>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h2 class="text-2xl font-semibold mb-4 text-red-500">Salida Vehicular</h2>
+                <div class="mb-4">
+                    <label for="patenteSalida" class="block text-sm font-medium text-gray-700 mb-1">Patente del Vehículo:</label>
+                    <input type="text" id="patenteSalida" class="w-full p-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500" placeholder="Ej: ABCD12">
+                </div>
+                <button id="btnBuscarParaSalida" class="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-2 px-4 rounded-md transition duration-150 mb-2">
+                    Buscar y Calcular Tarifa
+                </button>
+                <div id="infoSalida" class="mt-3 text-sm">
+                    <p id="mensajeSalida"></p>
+                    <p id="tiempoEstacionado"></p>
+                    <p id="tarifaPagar" class="font-bold"></p>
+                </div>
+                <button id="btnConfirmarSalida" class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition duration-150 mt-2 hidden">
+                    Confirmar Pago y Registrar Salida
+                </button>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <h2 class="text-2xl font-semibold mb-4 text-green-500">Monitoreo y Notificaciones</h2>
+                <div class="mb-4">
+                    <h3 class="text-lg font-medium text-gray-700">Temperatura en Acceso:</h3>
+                    <p id="temperaturaActual" class="text-2xl font-bold text-green-600">-- °C</p>
+                </div>
+                <div>
+                    <h3 class="text-lg font-medium text-gray-700">Notificaciones al Encargado:</h3>
+                    <div id="notificacionesEncargado" class="h-32 bg-gray-50 p-2 border border-gray-200 rounded-md overflow-y-auto text-xs">
+                        <p class="text-gray-400">Aún no hay notificaciones.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-semibold mb-6 text-center text-indigo-600">Estado del Estacionamiento (<span id="espaciosDisponibles">50</span>/50 disponibles)</h2>
+            <div id="grillaEstacionamiento" class="grid grid-cols-5 sm:grid-cols-10 gap-2">
+                </div>
+        </div>
+    </div>
+
+    <div id="generalModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="document.getElementById('generalModal').style.display='none'">&times;</span>
+            <p id="generalModalText"></p>
+        </div>
+    </div>
+
+    <script>
+        // --- CONFIGURACIÓN ---
+        const CAPACIDAD_MAXIMA = 50;
+        const TARIFA_POR_MINUTO = 50; // Pesos chilenos por minuto
+
+        // --- ESTADO DE LA APLICACIÓN ---
+        let espacios = []; // Array para almacenar el estado de cada espacio
+        let vehiculosEstacionados = {}; // Objeto para rastrear vehículos: { patente: {espacioId, tiempoEntrada, patente} }
+
+        // --- ELEMENTOS DEL DOM ---
+        const patenteEntradaEl = document.getElementById('patenteEntrada');
+        const btnRegistrarEntradaEl = document.getElementById('btnRegistrarEntrada');
+        const mensajeEntradaEl = document.getElementById('mensajeEntrada');
+
+        const patenteSalidaEl = document.getElementById('patenteSalida');
+        const btnBuscarParaSalidaEl = document.getElementById('btnBuscarParaSalida');
+        const btnConfirmarSalidaEl = document.getElementById('btnConfirmarSalida');
+        const mensajeSalidaEl = document.getElementById('mensajeSalida');
+        const tiempoEstacionadoEl = document.getElementById('tiempoEstacionado');
+        const tarifaPagarEl = document.getElementById('tarifaPagar');
+        
+        const temperaturaActualEl = document.getElementById('temperaturaActual');
+        const notificacionesEncargadoEl = document.getElementById('notificacionesEncargado');
+        const grillaEstacionamientoEl = document.getElementById('grillaEstacionamiento');
+        const espaciosDisponiblesEl = document.getElementById('espaciosDisponibles');
+
+        const generalModalEl = document.getElementById('generalModal');
+        const generalModalTextEl = document.getElementById('generalModalText');
+
+        // --- INICIALIZACIÓN ---
+        document.addEventListener('DOMContentLoaded', () => {
+            inicializarEstacionamiento();
+            actualizarVistaEstacionamiento();
+            actualizarTemperaturaSimulada();
+            setInterval(actualizarTemperaturaSimulada, 60000); // Actualizar temperatura cada minuto
+
+            btnRegistrarEntradaEl.addEventListener('click', registrarEntrada);
+            btnBuscarParaSalidaEl.addEventListener('click', buscarVehiculoParaSalida);
+            btnConfirmarSalidaEl.addEventListener('click', confirmarSalida);
+
+            // Permitir Enter en campos de patente
+            patenteEntradaEl.addEventListener('keypress', (e) => { if (e.key === 'Enter') registrarEntrada(); });
+            patenteSalidaEl.addEventListener('keypress', (e) => { if (e.key === 'Enter') buscarVehiculoParaSalida(); });
+        });
+
+        function inicializarEstacionamiento() {
+            for (let i = 0; i < CAPACIDAD_MAXIMA; i++) {
+                espacios.push({ id: i + 1, ocupado: false, patente: null, tiempoEntrada: null });
+            }
+        }
+
+        // --- LÓGICA DE MODAL ---
+        function mostrarModal(mensaje) {
+            generalModalTextEl.textContent = mensaje;
+            generalModalEl.style.display = "block";
+        }
+        // Cierra el modal si se hace clic fuera del contenido
+        window.onclick = function(event) {
+            if (event.target == generalModalEl) {
+                generalModalEl.style.display = "none";
+            }
+        }
+
+        // --- LÓGICA DE ENTRADA ---
+        function registrarEntrada() {
+            const patente = patenteEntradaEl.value.trim().toUpperCase();
+            if (!patente) {
+                mostrarModal("Por favor, ingrese una patente.");
+                return;
+            }
+            if (vehiculosEstacionados[patente]) {
+                mostrarModal(`El vehículo con patente ${patente} ya se encuentra dentro.`);
+                return;
+            }
+
+            const espacioLibre = espacios.find(e => !e.ocupado);
+            if (espacioLibre) {
+                espacioLibre.ocupado = true;
+                espacioLibre.patente = patente;
+                espacioLibre.tiempoEntrada = new Date();
+                
+                vehiculosEstacionados[patente] = {
+                    espacioId: espacioLibre.id,
+                    tiempoEntrada: espacioLibre.tiempoEntrada,
+                    patente: patente
+                };
+
+                mensajeEntradaEl.textContent = `Vehículo ${patente} ingresado. Asignado al espacio ${espacioLibre.id}.`;
+                mensajeEntradaEl.className = 'mt-3 text-sm text-green-600';
+                patenteEntradaEl.value = '';
+                agregarNotificacion(`Entrada: ${patente} -> Espacio ${espacioLibre.id} (${formatearHora(espacioLibre.tiempoEntrada)})`);
+                actualizarVistaEstacionamiento();
+            } else {
+                mensajeEntradaEl.textContent = "Estacionamiento lleno. No se pudo ingresar el vehículo.";
+                mensajeEntradaEl.className = 'mt-3 text-sm text-red-600';
+                agregarNotificacion(`Intento de entrada fallido (lleno): ${patente}`);
+                mostrarModal("Estacionamiento lleno.");
+            }
+            limpiarMensaje(mensajeEntradaEl, 5000);
+        }
+
+        // --- LÓGICA DE SALIDA ---
+        let patenteParaSalir = null; // Almacena la patente del vehículo que se está procesando para salir
+
+        function buscarVehiculoParaSalida() {
+            const patente = patenteSalidaEl.value.trim().toUpperCase();
+            if (!patente) {
+                mostrarModal("Por favor, ingrese una patente para la salida.");
+                return;
+            }
+
+            const vehiculo = vehiculosEstacionados[patente];
+            if (vehiculo) {
+                const tiempoSalida = new Date();
+                const tiempoEstacionadoMs = tiempoSalida - vehiculo.tiempoEntrada;
+                const minutosEstacionado = Math.max(1, Math.ceil(tiempoEstacionadoMs / (1000 * 60))); // Mínimo 1 minuto
+                const tarifa = minutosEstacionado * TARIFA_POR_MINUTO;
+
+                mensajeSalidaEl.textContent = `Vehículo: ${patente}. Espacio: ${vehiculo.espacioId}.`;
+                mensajeSalidaEl.className = 'text-blue-700';
+                tiempoEstacionadoEl.textContent = `Tiempo: ${formatearDuracion(tiempoEstacionadoMs)}.`;
+                tarifaPagarEl.textContent = `Tarifa a pagar: $${tarifa.toLocaleString('es-CL')}.`;
+                
+                btnConfirmarSalidaEl.classList.remove('hidden');
+                patenteParaSalir = patente; // Guardar patente para la confirmación
+
+                // Resaltar espacio en la grilla
+                actualizarVistaEstacionamiento(vehiculo.espacioId);
+
+                agregarNotificacion(`Cálculo tarifa: ${patente}, ${formatearDuracion(tiempoEstacionadoMs)}, $${tarifa.toLocaleString('es-CL')}`);
+
+            } else {
+                mensajeSalidaEl.textContent = `Vehículo con patente ${patente} no encontrado.`;
+                mensajeSalidaEl.className = 'text-red-600';
+                tiempoEstacionadoEl.textContent = '';
+                tarifaPagarEl.textContent = '';
+                btnConfirmarSalidaEl.classList.add('hidden');
+                patenteParaSalir = null;
+                actualizarVistaEstacionamiento(); // Quitar cualquier resaltado
+            }
+            limpiarMensaje(mensajeSalidaEl, 8000, () => {
+                tiempoEstacionadoEl.textContent = '';
+                tarifaPagarEl.textContent = '';
+            });
+        }
+
+        function confirmarSalida() {
+            if (!patenteParaSalir) {
+                mostrarModal("Error: No hay vehículo seleccionado para confirmar salida.");
+                return;
+            }
+
+            const vehiculo = vehiculosEstacionados[patenteParaSalir];
+            if (vehiculo) {
+                const espacio = espacios.find(e => e.id === vehiculo.espacioId);
+                espacio.ocupado = false;
+                espacio.patente = null;
+                espacio.tiempoEntrada = null;
+
+                delete vehiculosEstacionados[patenteParaSalir];
+
+                mostrarModal(`Salida del vehículo ${patenteParaSalir} registrada. Espacio ${espacio.id} liberado.`);
+                agregarNotificacion(`Salida: ${patenteParaSalir} del Espacio ${espacio.id} (${formatearHora(new Date())})`);
+
+                patenteSalidaEl.value = '';
+                mensajeSalidaEl.textContent = '';
+                tiempoEstacionadoEl.textContent = '';
+                tarifaPagarEl.textContent = '';
+                btnConfirmarSalidaEl.classList.add('hidden');
+                patenteParaSalir = null;
+
+                actualizarVistaEstacionamiento();
+            } else {
+                 mostrarModal(`Error: Vehículo ${patenteParaSalir} no encontrado al confirmar salida.`);
+            }
+        }
+
+
+        // --- ACTUALIZACIÓN DE VISTAS ---
+        function actualizarVistaEstacionamiento(espacioSeleccionadoParaSalidaId = null) {
+            grillaEstacionamientoEl.innerHTML = ''; // Limpiar grilla
+            let disponibles = 0;
+            espacios.forEach(espacio => {
+                const espacioDiv = document.createElement('div');
+                espacioDiv.classList.add('parking-space', 'p-2', 'rounded-md', 'text-center', 'text-xs', 'sm:text-sm', 'font-semibold', 'h-16', 'sm:h-20', 'flex', 'flex-col', 'justify-center', 'items-center', 'cursor-pointer');
+                espacioDiv.textContent = `E${espacio.id}`;
+                
+                if (espacio.ocupado) {
+                    espacioDiv.classList.add('occupied');
+                    const patenteSpan = document.createElement('span');
+                    patenteSpan.textContent = espacio.patente;
+                    patenteSpan.classList.add('block', 'text-xs', 'truncate');
+                    espacioDiv.appendChild(patenteSpan);
+                    if (espacio.id === espacioSeleccionadoParaSalidaId) {
+                        espacioDiv.classList.remove('occupied');
+                        espacioDiv.classList.add('selected-for-exit');
+                    }
+                } else {
+                    espacioDiv.classList.add('free');
+                    disponibles++;
+                }
+                
+                // Añadir funcionalidad para que al hacer clic en un espacio ocupado, se llene el campo de patente de salida
+                if (espacio.ocupado) {
+                    espacioDiv.addEventListener('click', () => {
+                        patenteSalidaEl.value = espacio.patente;
+                        buscarVehiculoParaSalida(); // Opcional: buscar directamente
+                    });
+                }
+
+                grillaEstacionamientoEl.appendChild(espacioDiv);
+            });
+            espaciosDisponiblesEl.textContent = `${disponibles}`;
+        }
+
+        function actualizarTemperaturaSimulada() {
+            // Simula una temperatura entre 15 y 30 grados Celsius
+            const temp = (Math.random() * 15 + 15).toFixed(1);
+            temperaturaActualEl.textContent = `${temp} °C`;
+        }
+
+        // --- UTILIDADES ---
+        function agregarNotificacion(mensaje) {
+            if (notificacionesEncargadoEl.childElementCount === 1 && notificacionesEncargadoEl.firstElementChild.textContent === "Aún no hay notificaciones.") {
+                notificacionesEncargadoEl.innerHTML = ''; // Limpiar mensaje inicial
+            }
+            const p = document.createElement('p');
+            p.textContent = mensaje;
+            p.className = 'mb-1 border-b border-gray-100 pb-1';
+            notificacionesEncargadoEl.prepend(p); // Añadir al principio para ver las más recientes arriba
+            // Limitar número de notificaciones (opcional)
+            if (notificacionesEncargadoEl.childElementCount > 20) {
+                notificacionesEncargadoEl.removeChild(notificacionesEncargadoEl.lastChild);
+            }
+        }
+        
+        function formatearHora(fecha) {
+            if (!fecha) return 'N/A';
+            return fecha.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatearDuracion(ms) {
+            if (ms < 0) ms = 0;
+            let secs = Math.floor(ms / 1000);
+            let mins = Math.floor(secs / 60);
+            secs = secs % 60;
+            let hrs = Math.floor(mins / 60);
+            mins = mins % 60;
+
+            let str = "";
+            if (hrs > 0) str += `${hrs}h `;
+            if (mins > 0 || hrs > 0) str += `${mins}m `; // Mostrar minutos si hay horas o minutos
+            str += `${secs}s`;
+            return str.trim();
+        }
+
+        function limpiarMensaje(elemento, duracion, callbackAdicional = null) {
+            setTimeout(() => {
+                elemento.textContent = '';
+                if (callbackAdicional) {
+                    callbackAdicional();
+                }
+            }, duracion);
+        }
+
+    </script>
+</body>
+</html>
